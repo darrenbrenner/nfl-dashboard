@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Home, Calendar, BarChart3, Landmark, ScrollText, RefreshCw, ChevronLeft, ChevronRight,
+  Home, Calendar, BarChart3, Landmark, ScrollText, RefreshCw, ChevronLeft, ChevronRight, X, Radio,
 } from 'lucide-react';
 
 // ESPN's public API blocks direct browser calls (no CORS headers) — route
@@ -63,6 +63,9 @@ const S = {
   sectionTitle: { fontSize: 19, fontWeight: 700, margin: 0, color: INK, letterSpacing: '-0.2px' },
   card: { background: 'var(--surface)', border: `1px solid ${LINE}`, borderRadius: RADIUS.lg, overflow: 'hidden', boxShadow: SHADOW.sm },
   cardLabel: { fontSize: 11, fontWeight: 800, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '10px 16px', background: 'var(--surface2)', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: 6 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 100, overflowY: 'auto', padding: '24px 12px' },
+  modal: { background: 'var(--surface)', borderRadius: RADIUS.lg, width: '100%', maxWidth: 760, boxShadow: SHADOW.lg, overflow: 'hidden' },
+  modalClose: { background: 'var(--surface2)', border: `1px solid ${LINE2}`, color: 'var(--text2)', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: 6, borderRadius: RADIUS.sm, display: 'flex' },
 };
 
 // ─── NFL structure (stable across seasons) ─────────────────────────────────
@@ -157,7 +160,7 @@ function TeamLine({ competitor, showScore, winner }) {
   );
 }
 
-function GameCard({ event }) {
+function GameCard({ event, onClick }) {
   const comp = event.competitions?.[0];
   const home = comp?.competitors?.find(c => c.homeAway === 'home');
   const away = comp?.competitors?.find(c => c.homeAway === 'away');
@@ -167,14 +170,18 @@ function GameCard({ event }) {
   const awayWin = completed && Number(away?.score) > Number(home?.score);
 
   return (
-    <div style={{ ...S.card, padding: '12px 14px' }}>
+    <div onClick={onClick} style={{ ...S.card, padding: '12px 14px', cursor: 'pointer', transition: 'box-shadow 0.15s, transform 0.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = SHADOW.md; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = SHADOW.sm; e.currentTarget.style.transform = 'none'; }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
           fontSize: 10, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase',
           color: isLive ? '#fff' : 'var(--text3)', background: isLive ? BRAND : 'var(--surface2)',
           padding: '2px 8px', borderRadius: RADIUS.pill,
         }}>
-          {gameStatusText(event)}
+          {isLive && <Radio size={9} />} {gameStatusText(event)}
         </span>
         <span style={{ fontSize: 10, color: 'var(--text4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
           {comp?.venue?.fullName}
@@ -263,7 +270,7 @@ function TeamsGrid({ teams }) {
 }
 
 // ─── Home ───────────────────────────────────────────────────────────────────
-function HomePage({ standings, weekGames, week }) {
+function HomePage({ standings, weekGames, week, onGameClick }) {
   const todayQuote = useMemo(() => quoteOfTheDay(), []);
 
   return (
@@ -286,8 +293,13 @@ function HomePage({ standings, weekGames, week }) {
             const home = comp?.competitors?.find(c => c.homeAway === 'home');
             const away = comp?.competitors?.find(c => c.homeAway === 'away');
             const completed = event.status?.type?.completed;
+            const isLive = event.status?.type?.state === 'in';
             return (
-              <div key={event.id} style={{ padding: '9px 16px', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div key={event.id} onClick={() => onGameClick(event)}
+                style={{ padding: '9px 16px', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--hover)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, fontSize: 12 }}>
                   <img src={logoFor(away?.team)} style={{ width: 16, height: 16, objectFit: 'contain' }} alt="" />
                   <span style={{ fontWeight: 700, color: 'var(--text)' }}>{away?.team.abbreviation}</span>
@@ -295,7 +307,7 @@ function HomePage({ standings, weekGames, week }) {
                   <img src={logoFor(home?.team)} style={{ width: 16, height: 16, objectFit: 'contain' }} alt="" />
                   <span style={{ fontWeight: 700, color: 'var(--text)' }}>{home?.team.abbreviation}</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', flexShrink: 0, fontFamily: 'ui-monospace, monospace' }}>
+                <div style={{ fontSize: 11, color: isLive ? BRAND : 'var(--text3)', fontWeight: isLive ? 700 : 400, flexShrink: 0, fontFamily: 'ui-monospace, monospace' }}>
                   {completed ? `${away?.score}–${home?.score}` : gameStatusText(event)}
                 </div>
               </div>
@@ -311,7 +323,7 @@ function HomePage({ standings, weekGames, week }) {
 }
 
 // ─── Games page ─────────────────────────────────────────────────────────────
-function GamesPage({ games, week, onPrevWeek, onNextWeek }) {
+function GamesPage({ games, week, onPrevWeek, onNextWeek, onGameClick }) {
   return (
     <div>
       <div style={S.bodyHeader}>
@@ -323,8 +335,199 @@ function GamesPage({ games, week, onPrevWeek, onNextWeek }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
-        {(games ?? []).map(event => <GameCard key={event.id} event={event} />)}
+        {(games ?? []).map(event => <GameCard key={event.id} event={event} onClick={() => onGameClick(event)} />)}
         {games && games.length === 0 && <p style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text4)' }}>No games this week.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Game Modal (gamecast: win prob, team stats, player stats, drives) ─────
+const GAME_STAT_ROWS = [
+  ['firstDowns', '1st Downs'], ['totalYards', 'Total Yards'], ['netPassingYards', 'Pass Yards'],
+  ['rushingYards', 'Rush Yards'], ['thirdDownEff', '3rd Down'], ['turnovers', 'Turnovers'],
+  ['totalPenaltiesYards', 'Penalties'], ['possessionTime', 'Possession'],
+];
+
+function GameStatsCompare({ boxAway, boxHome }) {
+  if (!boxAway || !boxHome) return null;
+  const statOf = (box, name) => box.statistics?.find(s => s.name === name)?.displayValue ?? '—';
+  return (
+    <div>
+      {GAME_STAT_ROWS.map(([name, label]) => (
+        <div key={name} style={{ display: 'flex', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${LINE}`, fontSize: 12 }}>
+          <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}>{statOf(boxAway, name)}</span>
+          <span style={{ width: 130, textAlign: 'center', color: 'var(--text4)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>{label}</span>
+          <span style={{ flex: 1, textAlign: 'left', fontWeight: 700, color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}>{statOf(boxHome, name)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WinProbBar({ winprobability, awayTeam, homeTeam }) {
+  const last = winprobability?.[winprobability.length - 1];
+  if (!last) return null;
+  const homePct = Math.round(last.homeWinPercentage * 100);
+  const awayPct = 100 - homePct;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, marginBottom: 5 }}>
+        <span style={{ color: 'var(--text)' }}>{awayTeam?.abbreviation} {awayPct}%</span>
+        <span style={{ color: 'var(--text3)' }}>Win Probability</span>
+        <span style={{ color: 'var(--text)' }}>{homePct}% {homeTeam?.abbreviation}</span>
+      </div>
+      <div style={{ display: 'flex', height: 8, borderRadius: RADIUS.pill, overflow: 'hidden' }}>
+        <div style={{ width: `${awayPct}%`, background: `#${awayTeam?.color || '64748b'}` }} />
+        <div style={{ width: `${homePct}%`, background: `#${homeTeam?.color || ACCENT.slice(1)}` }} />
+      </div>
+    </div>
+  );
+}
+
+const PLAYER_CATEGORIES = ['passing', 'rushing', 'receiving'];
+
+function PlayerStatCategory({ category }) {
+  if (!category?.athletes?.length) return null;
+  const th = { padding: '3px 5px', fontSize: 9, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', textTransform: 'uppercase' };
+  const td = { padding: '3px 5px', fontSize: 11, fontFamily: 'ui-monospace, monospace', textAlign: 'center', color: 'var(--text2)' };
+  return (
+    <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: 10 }}>
+      <thead>
+        <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+          <th style={{ ...th, textAlign: 'left' }}>{category.text}</th>
+          {category.labels.map(l => <th key={l} style={th}>{l}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {category.athletes.map(a => (
+          <tr key={a.athlete.id}>
+            <td style={{ padding: '3px 5px', fontSize: 11, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>{a.athlete.displayName}</td>
+            {a.stats.map((s, i) => <td key={i} style={td}>{s}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function TeamPlayerStats({ abbr, teamId, playersByTeam }) {
+  const teamStats = playersByTeam?.find(t => t.team.id === teamId);
+  if (!teamStats) return null;
+  const cats = PLAYER_CATEGORIES.map(name => teamStats.statistics?.find(s => s.name === name)).filter(c => c?.athletes?.length);
+  if (cats.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{abbr}</div>
+      {cats.map(c => <PlayerStatCategory key={c.name} category={c} />)}
+    </div>
+  );
+}
+
+function DrivesFeed({ drives }) {
+  const list = [...(drives?.previous ?? [])].reverse();
+  if (list.length === 0) return <p style={{ color: 'var(--text4)', fontSize: 12, textAlign: 'center', padding: '16px 0' }}>No drive data yet.</p>;
+  return (
+    <div>
+      {list.map(d => (
+        <div key={d.id} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: `1px solid ${LINE}` }}>
+          <img src={logoFor(d.team)} style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0, marginTop: 1 }} alt="" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: d.isScore ? BRAND : 'var(--text)' }}>
+              {d.team?.shortDisplayName} — {d.displayResult}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text4)' }}>{d.description}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GameModal({ event, onClose }) {
+  const [summary, setSummary] = useState(null);
+  const isLive = event.status?.type?.state === 'in';
+
+  useEffect(() => {
+    const load = () => espnFetch(`/apis/site/v2/sports/football/nfl/summary?event=${event.id}`).then(setSummary).catch(() => {});
+    load();
+    if (!isLive) return;
+    const id = setInterval(load, 15_000);
+    return () => clearInterval(id);
+  }, [event.id, isLive]);
+
+  const comp = event.competitions?.[0];
+  const home = comp?.competitors?.find(c => c.homeAway === 'home');
+  const away = comp?.competitors?.find(c => c.homeAway === 'away');
+  const completed = event.status?.type?.completed;
+  const showScore = completed || isLive;
+
+  const boxTeams = summary?.boxscore?.teams ?? [];
+  const boxAway = boxTeams.find(t => t.team.id === away?.team.id);
+  const boxHome = boxTeams.find(t => t.team.id === home?.team.id);
+  const playersByTeam = summary?.boxscore?.players ?? [];
+
+  return (
+    <div style={S.overlay} onClick={onClose}>
+      <div style={S.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${LINE}`, position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 800,
+              letterSpacing: '0.05em', textTransform: 'uppercase', color: isLive ? '#fff' : 'var(--text3)',
+              background: isLive ? BRAND : 'var(--surface2)', padding: '2px 8px', borderRadius: RADIUS.pill,
+            }}>
+              {isLive && <Radio size={9} />} {gameStatusText(event)}
+            </span>
+            <button style={S.modalClose} onClick={onClose}><X size={14} /></button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginTop: 12 }}>
+            <div style={{ textAlign: 'center', flex: 1 }}>
+              <img src={logoFor(away?.team)} style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 4 }} alt="" />
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{away?.team.displayName}</div>
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'ui-monospace, monospace', color: 'var(--text)', flexShrink: 0 }}>
+              {showScore ? `${away?.score}–${home?.score}` : 'vs'}
+            </div>
+            <div style={{ textAlign: 'center', flex: 1 }}>
+              <img src={logoFor(home?.team)} style={{ width: 40, height: 40, objectFit: 'contain', marginBottom: 4 }} alt="" />
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{home?.team.displayName}</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text4)', marginTop: 6 }}>{comp?.venue?.fullName}</div>
+        </div>
+
+        <div style={{ padding: '16px 20px', maxHeight: '70vh', overflowY: 'auto' }}>
+          {!summary && <p style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text4)', fontSize: 12 }}>Loading gamecast...</p>}
+          {summary && (
+            <>
+              {(isLive || completed) && (
+                <WinProbBar winprobability={summary.winprobability} awayTeam={away?.team} homeTeam={home?.team} />
+              )}
+              {boxAway && boxHome && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={S.cardLabel}>Team Stats</div>
+                  <GameStatsCompare boxAway={boxAway} boxHome={boxHome} />
+                </div>
+              )}
+              {playersByTeam.length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={S.cardLabel}>Player Stats</div>
+                  <div style={{ marginTop: 10 }}>
+                    <TeamPlayerStats abbr={away?.team.abbreviation} teamId={away?.team.id} playersByTeam={playersByTeam} />
+                    <TeamPlayerStats abbr={home?.team.abbreviation} teamId={home?.team.id} playersByTeam={playersByTeam} />
+                  </div>
+                </div>
+              )}
+              {(isLive || completed) && summary.drives && (
+                <div>
+                  <div style={S.cardLabel}>Gamecast — Drives</div>
+                  <div style={{ marginTop: 6 }}><DrivesFeed drives={summary.drives} /></div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -338,6 +541,10 @@ export default function App() {
   const [games, setGames] = useState(null);
   const [standings, setStandings] = useState(null);
   const [teams, setTeams] = useState(null);
+  const [selectedGameId, setSelectedGameId] = useState(null);
+  // Derived (not a snapshot) so the modal's header score/status stays in
+  // sync as `games` gets silently refreshed by the 20s poll.
+  const selectedGame = games?.find(g => g.id === selectedGameId) ?? null;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -439,9 +646,11 @@ export default function App() {
       </div>
 
       <div style={S.body}>
-        {mainTab === 'home' && <HomePage standings={standings} weekGames={games} week={week} />}
+        {mainTab === 'home' && (
+          <HomePage standings={standings} weekGames={games} week={week} onGameClick={(e) => setSelectedGameId(e.id)} />
+        )}
         {mainTab === 'games' && (
-          <GamesPage games={games} week={week} onPrevWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} />
+          <GamesPage games={games} week={week} onPrevWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} onGameClick={(e) => setSelectedGameId(e.id)} />
         )}
         {mainTab === 'standings' && (
           <div>
@@ -456,6 +665,8 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {selectedGame && <GameModal event={selectedGame} onClose={() => setSelectedGameId(null)} />}
     </div>
   );
 }
