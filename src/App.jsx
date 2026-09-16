@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Home, Calendar, BarChart3, Landmark, ScrollText, RefreshCw, ChevronLeft, ChevronRight,
 } from 'lucide-react';
@@ -310,93 +310,6 @@ function HomePage({ standings, weekGames, week }) {
   );
 }
 
-// ─── Box Scores (aged newspaper clipping style) ────────────────────────────
-const PAPER = {
-  page: '#e7dcbf', card: '#f3ead2', ink: '#2b2117', ink2: '#5f4f37',
-  rule: '#8c7a55', ruleDark: '#332920',
-};
-const PAPER_FONT = "'Special Elite', 'Courier New', monospace";
-const PAPER_SERIF = "'Playfair Display', Georgia, 'Times New Roman', serif";
-const PAPER_NOISE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E")`;
-
-function BoxScoreClipping({ event }) {
-  const comp = event.competitions?.[0];
-  const home = comp?.competitors?.find(c => c.homeAway === 'home');
-  const away = comp?.competitors?.find(c => c.homeAway === 'away');
-  const periods = Math.max(4, home?.linescores?.length ?? 4, away?.linescores?.length ?? 4);
-
-  const th = { padding: '2px 5px', fontSize: 9, fontWeight: 700, color: PAPER.ink2, textAlign: 'center', width: 20 };
-  const td = { padding: '2px 5px', fontSize: 10, textAlign: 'center', color: PAPER.ink2 };
-  const tdBold = { ...td, fontWeight: 700, color: PAPER.ink };
-
-  const winner = Number(home?.score) > Number(away?.score) ? home : away;
-  const loser = winner === home ? away : home;
-
-  return (
-    <div style={{
-      background: PAPER.card, backgroundImage: PAPER_NOISE, backgroundBlendMode: 'multiply',
-      border: `1px solid ${PAPER.ruleDark}`, borderTop: `4px double ${PAPER.ruleDark}`,
-      boxShadow: '2px 4px 10px rgba(30,20,10,0.28)', fontFamily: PAPER_FONT, color: PAPER.ink,
-      padding: '10px 12px 12px',
-    }}>
-      <div style={{ margin: '0 -12px 8px', padding: '6px 12px', fontSize: 10, fontWeight: 700, color: PAPER.ink2, borderBottom: `1px solid ${PAPER.ruleDark}`, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-        {comp?.venue?.fullName ?? ''}
-      </div>
-      {winner && loser && (
-        <p style={{ fontFamily: PAPER_SERIF, fontSize: 13, fontWeight: 700, margin: '0 0 8px', lineHeight: 1.3 }}>
-          {winner.team.displayName} defeat {loser.team.displayName}, {winner.score}-{loser.score}
-        </p>
-      )}
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={{ ...th, textAlign: 'left', width: 'auto' }}>Team</th>
-            {Array.from({ length: periods }, (_, i) => <th key={i} style={th}>{i < 4 ? i + 1 : 'OT'}</th>)}
-            <th style={{ ...th, borderLeft: `1px solid ${PAPER.rule}` }}>F</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[away, home].map((c, ci) => (
-            <tr key={ci} style={{ borderTop: `1px solid ${PAPER.rule}` }}>
-              <td style={{ padding: '3px 5px 3px 0', fontSize: 10, fontWeight: 700, color: PAPER.ink, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <img src={logoFor(c?.team)} style={{ width: 13, height: 13, objectFit: 'contain', filter: 'sepia(0.7) saturate(1.4) contrast(0.9)' }} alt="" />
-                {c?.team.abbreviation}
-              </td>
-              {Array.from({ length: periods }, (_, i) => (
-                <td key={i} style={td}>{c?.linescores?.[i]?.displayValue ?? ''}</td>
-              ))}
-              <td style={{ ...tdBold, borderLeft: `1px solid ${PAPER.rule}` }}>{c?.score}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function BoxScoresPage({ games, week }) {
-  const completed = (games ?? []).filter(e => e.status?.type?.completed);
-  return (
-    <div style={{
-      background: PAPER.page, backgroundImage: PAPER_NOISE, backgroundBlendMode: 'multiply',
-      padding: '24px 20px 40px', margin: '-18px -16px 0', minHeight: 'calc(100vh - 150px)',
-    }}>
-      <div style={{ maxWidth: 1220, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 22, paddingBottom: 12, borderBottom: `4px double ${PAPER.ruleDark}` }}>
-          <div style={{ fontFamily: PAPER_SERIF, fontWeight: 900, fontSize: 36, letterSpacing: '0.05em', color: PAPER.ink, textTransform: 'uppercase' }}>Box Scores</div>
-          <div style={{ fontFamily: PAPER_FONT, fontSize: 13, color: PAPER.ink2, marginTop: 4, fontStyle: 'italic' }}>Week {week}</div>
-        </div>
-        {completed.length === 0 && (
-          <p style={{ textAlign: 'center', padding: '60px 0', color: PAPER.ink2, fontFamily: PAPER_FONT }}>No completed games yet this week.</p>
-        )}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px 24px', alignItems: 'start' }}>
-          {completed.map(event => <BoxScoreClipping key={event.id} event={event} />)}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Games page ─────────────────────────────────────────────────────────────
 function GamesPage({ games, week, onPrevWeek, onNextWeek }) {
   return (
@@ -465,6 +378,25 @@ export default function App() {
       .catch(() => {});
   }, [season, week]);
 
+  // Live score polling: silently refetch the currently-viewed week every 20s
+  // so in-progress games update without a manual refresh. Refs avoid a stale
+  // week/season closure inside the interval callback.
+  const seasonRef = useRef(season);
+  const weekRef = useRef(week);
+  useEffect(() => { seasonRef.current = season; }, [season]);
+  useEffect(() => { weekRef.current = week; }, [week]);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = seasonRef.current;
+      const w = weekRef.current;
+      if (!s || w == null) return;
+      espnFetch(`/apis/site/v2/sports/football/nfl/scoreboard?week=${w}&seasontype=${s.type}&year=${s.year}`)
+        .then(d => setGames(d.events ?? []))
+        .catch(() => {});
+    }, 20_000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     espnFetch('/apis/v2/sports/football/nfl/standings')
       .then(d => setStandings(d.children ?? []))
@@ -479,7 +411,6 @@ export default function App() {
   const tabs = [
     ['home', <><Home size={13} /> Home</>],
     ['games', <><Calendar size={13} /> Games</>],
-    ['boxscores', <><ScrollText size={13} /> Box Scores</>],
     ['standings', <><BarChart3 size={13} /> Standings</>],
     ['teams', <><Landmark size={13} /> Teams</>],
   ];
@@ -512,7 +443,6 @@ export default function App() {
         {mainTab === 'games' && (
           <GamesPage games={games} week={week} onPrevWeek={() => changeWeek(-1)} onNextWeek={() => changeWeek(1)} />
         )}
-        {mainTab === 'boxscores' && <BoxScoresPage games={games} week={week} />}
         {mainTab === 'standings' && (
           <div>
             <div style={S.bodyHeader}><h2 style={{ ...S.sectionTitle }}>Standings</h2></div>

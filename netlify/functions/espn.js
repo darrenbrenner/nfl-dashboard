@@ -18,7 +18,7 @@ export const handler = async (event) => {
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=0, s-maxage=30, stale-while-revalidate=120',
+        'Cache-Control': 'public, max-age=0, s-maxage=15, stale-while-revalidate=60',
       },
       body: text,
     };
