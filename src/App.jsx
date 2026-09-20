@@ -424,6 +424,48 @@ function TeamPlayerStats({ abbr, teamId, playersByTeam }) {
   );
 }
 
+function PlayByPlay({ drives }) {
+  const items = [];
+  for (const drive of [...(drives?.previous ?? [])].reverse()) {
+    for (const play of [...(drive.plays ?? [])].reverse()) {
+      items.push({ play, team: drive.team });
+    }
+  }
+  if (items.length === 0) return (
+    <p style={{ color: 'var(--text4)', fontSize: 12, textAlign: 'center', padding: '16px 0' }}>No plays yet.</p>
+  );
+  return (
+    <div>
+      {items.map(({ play, team }) => (
+        <div key={play.id} style={{ padding: '8px 0', borderBottom: `1px solid ${LINE}`, display: 'flex', gap: 10 }}>
+          <img src={logoFor(team)} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0, marginTop: 2 }} alt="" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+              <span style={{ fontSize: 10, color: 'var(--text4)', fontFamily: 'ui-monospace, monospace' }}>
+                Q{play.period?.number} {play.clock?.displayValue}
+              </span>
+              {play.type?.text && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase' }}>{play.type.text}</span>
+              )}
+              {play.scoringPlay && (
+                <span style={{ fontSize: 9, fontWeight: 800, background: BRAND, color: '#fff', padding: '1px 5px', borderRadius: RADIUS.pill }}>
+                  {play.awayScore}–{play.homeScore}
+                </span>
+              )}
+              {play.statYardage != null && play.statYardage !== 0 && (
+                <span style={{ fontSize: 10, fontFamily: 'ui-monospace, monospace', color: play.statYardage > 0 ? '#22c55e' : '#ef4444', marginLeft: 'auto' }}>
+                  {play.statYardage > 0 ? '+' : ''}{play.statYardage} yds
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text2)', lineHeight: 1.4 }}>{play.text}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DrivesFeed({ drives }) {
   const list = [...(drives?.previous ?? [])].reverse();
   if (list.length === 0) return <p style={{ color: 'var(--text4)', fontSize: 12, textAlign: 'center', padding: '16px 0' }}>No drive data yet.</p>;
@@ -520,9 +562,15 @@ function GameModal({ event, onClose }) {
                 </div>
               )}
               {(isLive || completed) && summary.drives && (
-                <div>
-                  <div style={S.cardLabel}>Gamecast — Drives</div>
+                <div style={{ marginBottom: 18 }}>
+                  <div style={S.cardLabel}>Drives</div>
                   <div style={{ marginTop: 6 }}><DrivesFeed drives={summary.drives} /></div>
+                </div>
+              )}
+              {(isLive || completed) && summary.drives && (
+                <div>
+                  <div style={S.cardLabel}>Play by Play</div>
+                  <div style={{ marginTop: 6 }}><PlayByPlay drives={summary.drives} /></div>
                 </div>
               )}
             </>
