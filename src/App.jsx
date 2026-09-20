@@ -542,6 +542,7 @@ export default function App() {
   const [standings, setStandings] = useState(null);
   const [teams, setTeams] = useState(null);
   const [selectedGameId, setSelectedGameId] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
   // Derived (not a snapshot) so the modal's header score/status stays in
   // sync as `games` gets silently refreshed by the 20s poll.
   const selectedGame = games?.find(g => g.id === selectedGameId) ?? null;
@@ -571,6 +572,7 @@ export default function App() {
     espnFetch('/apis/site/v2/sports/football/nfl/scoreboard')
       .then(d => {
         setGames(d.events ?? []);
+        setLastRefresh(new Date());
         setWeek(d.week?.number ?? 1);
         setSeason({ year: d.season?.year ?? new Date().getFullYear(), type: d.season?.type ?? 2 });
       })
@@ -581,7 +583,7 @@ export default function App() {
   useEffect(() => {
     if (!season || week == null) return;
     espnFetch(`/apis/site/v2/sports/football/nfl/scoreboard?week=${week}&seasontype=${season.type}&year=${season.year}`)
-      .then(d => setGames(d.events ?? []))
+      .then(d => { setGames(d.events ?? []); setLastRefresh(new Date()); })
       .catch(() => {});
   }, [season, week]);
 
@@ -598,7 +600,7 @@ export default function App() {
       const w = weekRef.current;
       if (!s || w == null) return;
       espnFetch(`/apis/site/v2/sports/football/nfl/scoreboard?week=${w}&seasontype=${s.type}&year=${s.year}`)
-        .then(d => setGames(d.events ?? []))
+        .then(d => { setGames(d.events ?? []); setLastRefresh(new Date()); })
         .catch(() => {});
     }, 20_000);
     return () => clearInterval(id);
@@ -630,7 +632,14 @@ export default function App() {
           <h1 style={S.pageTitle}>Dashboard</h1>
         </div>
         <div style={S.headerRight}>
-          <button style={S.btnBlue} onClick={() => window.location.reload()}><RefreshCw size={13} /> Refresh</button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+            <button style={S.btnBlue} onClick={() => window.location.reload()}><RefreshCw size={13} /> Refresh</button>
+            {lastRefresh && (
+              <span style={{ fontSize: 10, color: 'var(--text4)' }}>
+                Last refresh: {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
