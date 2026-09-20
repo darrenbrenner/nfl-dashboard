@@ -138,12 +138,15 @@ function gameStatusText(event) {
   return t.detail?.includes('OT') ? 'FINAL/OT' : 'FINAL';
 }
 
-function TeamLine({ competitor, showScore, winner }) {
+function TeamLine({ competitor, showScore, winner, hasBall }) {
   const team = competitor.team;
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <img src={logoFor(team)} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" />
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <img src={logoFor(team)} style={{ width: 28, height: 28, objectFit: 'contain', display: 'block' }} alt="" />
+          {hasBall && <span style={{ position: 'absolute', bottom: -2, right: -4, width: 8, height: 8, borderRadius: '50%', background: BRAND, border: '1.5px solid var(--surface)' }} />}
+        </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: winner ? 900 : 700, fontSize: 15, color: winner ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {team.displayName}
@@ -188,9 +191,16 @@ function GameCard({ event, onClick }) {
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <TeamLine competitor={away} showScore={completed || isLive} winner={awayWin} />
-        <TeamLine competitor={home} showScore={completed || isLive} winner={homeWin} />
+        <TeamLine competitor={away} showScore={completed || isLive} winner={awayWin} hasBall={isLive && comp?.situation?.possession === away?.team?.id} />
+        <TeamLine competitor={home} showScore={completed || isLive} winner={homeWin} hasBall={isLive && comp?.situation?.possession === home?.team?.id} />
       </div>
+      {isLive && comp?.situation?.downDistanceText && (
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${LINE}`, fontSize: 10, color: 'var(--text3)', display: 'flex', gap: 5, alignItems: 'center' }}>
+          <span style={{ fontWeight: 800, color: BRAND, fontSize: 9 }}>▶</span>
+          <span>{comp.situation.downDistanceText}</span>
+          {comp.situation.isRedZone && <span style={{ fontWeight: 800, color: '#ef4444' }}>Red Zone</span>}
+        </div>
+      )}
     </div>
   );
 }
